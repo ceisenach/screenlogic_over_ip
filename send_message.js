@@ -270,13 +270,14 @@ function create_login_message_data(schema,con_type,vers,data_array,procID) {
 }
 
 function pentair_connect_and_login() {
+    console.log('\r\n-----------------------------------------------');
+    console.log('----- CONNECTING TO PENTAIR SCREENLOGIC -------')
+    console.log('-----------------------------------------------\r\n');
 
-    // Soft Connect
-    console.log('STEP 1 - Soft Connecting');
+    // Intial Connection Message
     const scm = create_incoming_connection_message();
 
-    // Log In
-    console.log('STEP 2 - LOG IN');
+    // Log In Message
     var empty_data = Buffer.alloc(16);
     var login_data = create_login_message_data(348,0,'Android',empty_data,2);
     var login_headers = Buffer.alloc(4);
@@ -295,21 +296,27 @@ function pentair_connect_and_login() {
     const net = require('net');
     const client = net.connect({host: LOCATED_SYSTEM.pentair_ip, port: LOCATED_SYSTEM.pentair_comm_port}, () => {
         // 'connect' listener
-        console.log('Connected to Pentair Server!');
+        console.log('Connected to Pentair Server! Logging in...');
         client.write(scm);
-        
+        setTimeout(() => {client.write(login_msg);},100);
 
         /// Example of sending messages
-        setTimeout(() => {client.write(login_msg);},100);
         setTimeout(() => {client.write(control_config_query_msg);},200);
-        setTimeout(() => {client.write(lights_set_msg);},300);
-        setTimeout(() => {client.write(spahigh_set_msg);},400);
-        setTimeout(() => {client.write(heatmode_set_msg);},400);
+        //setTimeout(() => {client.write(lights_set_msg);},300);
+        //setTimeout(() => {client.write(spahigh_set_msg);},400);
+        //setTimeout(() => {client.write(heatmode_set_msg);},400);
     });
     client.on('data', (data) => {
-      console.log('RECEIVING TCP RESPONSE -- ')
+      console.log('\r\n*******************************')
+      console.log('****** BEGIN TCP RESPONSE *****')  
+      console.log('*******************************\r\n')
+      console.log('RESPONSE DATA BUFFER: ')
       console.log(data);
+      console.log('MESSAGE CODES: '+get_word16_as_little_endian(data,0)+','+get_word16_as_little_endian(data,2))
       process_pentair_response(data);
+      console.log('\r\n*******************************')
+      console.log('****** END TCP RESPONSE *******')  
+      console.log('*******************************\r\n')
     });
     client.on('end', () => {
       console.log('Disconnected from server!');
@@ -506,6 +513,10 @@ function Pool_Colorlights_Command(ControllerIndex,cmd) {
 /////////////////////////////////////////////////////////////////////////
 ////////////// BROADCAST PING MESSAGE TO LOCATE SERVER //////////////////
 /////////////////////////////////////////////////////////////////////////
+console.log('-----------------------------------------------');
+console.log('-------- LOCATING PENTAIR SCREENLOGIC ---------')
+console.log('-----------------------------------------------\r\n');
+
 server.on('error', (err) => {
   console.log(`server error:\n${err.stack}`);
   server.close();
@@ -537,6 +548,7 @@ const PING_MESSAGE = Buffer.alloc(8); //see line 170
 PING_MESSAGE[0] = 1;
 server.bind( function() { server.setBroadcast(true) } ); //see line 156
 server.send(PING_MESSAGE,0,8,PENTAIR_PORT,BROADCAST_ADDRESS);
+
 
 // SEND INITIAL CONNECTION MESSAGE
 setTimeout(pentair_connect_and_login,500);
