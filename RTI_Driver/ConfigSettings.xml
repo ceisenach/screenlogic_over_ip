@@ -1,6 +1,58 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <configuration>
-  <category name="Pentair Information" description="Connection Details">
+  <category name="Pentair Information" description="Basic Information">
     <setting type="string" name="IP Address" variable="Pentair_IP" description="Pentair IP" />
+    <setting type="integer" name="Number of Pool Circuits" variable="Num_Pool_Circuits" description="Pentair Pool Circuits" />
+  </category>
+  <category name="Circuit IDs" description="Circuit IDs">
+  	<setting type="integer" name="Circuit 1" variable="CircuitID_1" description="Circuit ID" condition="$Num_Pool_Circuits >= 1" />
+  	<setting type="integer" name="Circuit 2" variable="CircuitID_2" description="Circuit ID" condition="$Num_Pool_Circuits >= 2" />
+  	<setting type="integer" name="Circuit 3" variable="CircuitID_3" description="Circuit ID" condition="$Num_Pool_Circuits >= 3" />
+  	<setting type="integer" name="Circuit 4" variable="CircuitID_4" description="Circuit ID" condition="$Num_Pool_Circuits >= 4" />
+  	<setting type="integer" name="Circuit 5" variable="CircuitID_5" description="Circuit ID" condition="$Num_Pool_Circuits >= 5" />
+  	<setting type="integer" name="Circuit 6" variable="CircuitID_6" description="Circuit ID" condition="$Num_Pool_Circuits >= 6" />
+  	<setting type="integer" name="Circuit 7" variable="CircuitID_7" description="Circuit ID" condition="$Num_Pool_Circuits >= 7" />
+  	<setting type="integer" name="Circuit 8" variable="CircuitID_8" description="Circuit ID" condition="$Num_Pool_Circuits >= 8" />
+  	<setting type="integer" name="Circuit 9" variable="CircuitID_9" description="Circuit ID" condition="$Num_Pool_Circuits >= 9" />
+  	<setting type="integer" name="Circuit 10" variable="CircuitID_10" description="Circuit ID" condition="$Num_Pool_Circuits >= 10" />
+  	<setting type="integer" name="Circuit 11" variable="CircuitID_11" description="Circuit ID" condition="$Num_Pool_Circuits >= 11" />
+  	<setting type="integer" name="Circuit 12" variable="CircuitID_12" description="Circuit ID" condition="$Num_Pool_Circuits >= 12" />
+  	<setting type="integer" name="Circuit 13" variable="CircuitID_13" description="Circuit ID" condition="$Num_Pool_Circuits >= 13" />
+  	<setting type="integer" name="Circuit 14" variable="CircuitID_14" description="Circuit ID" condition="$Num_Pool_Circuits >= 14" />
+  	<setting type="integer" name="Circuit 15" variable="CircuitID_15" description="Circuit ID" condition="$Num_Pool_Circuits >= 15" />
+  	<setting type="integer" name="Circuit 16" variable="CircuitID_16" description="Circuit ID" condition="$Num_Pool_Circuits >= 16" />
+  	<setting type="integer" name="Circuit 17" variable="CircuitID_17" description="Circuit ID" condition="$Num_Pool_Circuits >= 17" />
+  	<setting type="integer" name="Circuit 18" variable="CircuitID_18" description="Circuit ID" condition="$Num_Pool_Circuits >= 18" />
+  	<setting type="integer" name="Circuit 19" variable="CircuitID_19" description="Circuit ID" condition="$Num_Pool_Circuits >= 19" />
+  	<setting type="integer" name="Circuit 20" variable="CircuitID_20" description="Circuit ID" condition="$Num_Pool_Circuits >= 20" />
+  	<setting type="integer" name="Circuit 21" variable="CircuitID_21" description="Circuit ID" condition="$Num_Pool_Circuits >= 21" />
+  	<setting type="integer" name="Circuit 22" variable="CircuitID_22" description="Circuit ID" condition="$Num_Pool_Circuits >= 22" />
+  	<setting type="integer" name="Circuit 23" variable="CircuitID_23" description="Circuit ID" condition="$Num_Pool_Circuits >= 23" />
+  	<setting type="integer" name="Circuit 24" variable="CircuitID_24" description="Circuit ID" condition="$Num_Pool_Circuits >= 24" />
+  	<setting type="integer" name="Circuit 25" variable="CircuitID_25" description="Circuit ID" condition="$Num_Pool_Circuits >= 25" />
+  	<setting type="integer" name="Circuit 26" variable="CircuitID_26" description="Circuit ID" condition="$Num_Pool_Circuits >= 26" />
+  	<setting type="integer" name="Circuit 27" variable="CircuitID_27" description="Circuit ID" condition="$Num_Pool_Circuits >= 27" />
+  	<setting type="integer" name="Circuit 28" variable="CircuitID_28" description="Circuit ID" condition="$Num_Pool_Circuits >= 28" />
+  	<setting type="integer" name="Circuit 29" variable="CircuitID_29" description="Circuit ID" condition="$Num_Pool_Circuits >= 29" />
+  	<setting type="integer" name="Circuit 30" variable="CircuitID_30" description="Circuit ID" condition="$Num_Pool_Circuits >= 30" />
+  	<setting type="integer" name="Circuit 31" variable="CircuitID_31" description="Circuit ID" condition="$Num_Pool_Circuits >= 31" />
+  	<setting type="integer" name="Circuit 32" variable="CircuitID_32" description="Circuit ID" condition="$Num_Pool_Circuits >= 32" />
+  	<setting type="integer" name="Circuit 33" variable="CircuitID_33" description="Circuit ID" condition="$Num_Pool_Circuits >= 33" />
+  	<setting type="integer" name="Circuit 34" variable="CircuitID_34" description="Circuit ID" condition="$Num_Pool_Circuits >= 34" />
+  	<setting type="integer" name="Circuit 35" variable="CircuitID_35" description="Circuit ID" condition="$Num_Pool_Circuits >= 35" />
+  	<setting type="integer" name="Circuit 36" variable="CircuitID_36" description="Circuit ID" condition="$Num_Pool_Circuits >= 36" />
+  	<setting type="integer" name="Circuit 37" variable="CircuitID_37" description="Circuit ID" condition="$Num_Pool_Circuits >= 37" />
+  	<setting type="integer" name="Circuit 38" variable="CircuitID_38" description="Circuit ID" condition="$Num_Pool_Circuits >= 38" />
+  	<setting type="integer" name="Circuit 39" variable="CircuitID_39" description="Circuit ID" condition="$Num_Pool_Circuits >= 39" />
+  	<setting type="integer" name="Circuit 40" variable="CircuitID_40" description="Circuit ID" condition="$Num_Pool_Circuits >= 40" />
+  	<setting type="integer" name="Circuit 41" variable="CircuitID_41" description="Circuit ID" condition="$Num_Pool_Circuits >= 41" />
+  	<setting type="integer" name="Circuit 42" variable="CircuitID_42" description="Circuit ID" condition="$Num_Pool_Circuits >= 42" />
+  	<setting type="integer" name="Circuit 43" variable="CircuitID_43" description="Circuit ID" condition="$Num_Pool_Circuits >= 43" />
+  	<setting type="integer" name="Circuit 44" variable="CircuitID_44" description="Circuit ID" condition="$Num_Pool_Circuits >= 44" />
+  	<setting type="integer" name="Circuit 45" variable="CircuitID_45" description="Circuit ID" condition="$Num_Pool_Circuits >= 45" />
+  	<setting type="integer" name="Circuit 46" variable="CircuitID_46" description="Circuit ID" condition="$Num_Pool_Circuits >= 46" />
+  	<setting type="integer" name="Circuit 47" variable="CircuitID_47" description="Circuit ID" condition="$Num_Pool_Circuits >= 47" />
+  	<setting type="integer" name="Circuit 48" variable="CircuitID_48" description="Circuit ID" condition="$Num_Pool_Circuits >= 48" />
+  	<setting type="integer" name="Circuit 49" variable="CircuitID_49" description="Circuit ID" condition="$Num_Pool_Circuits >= 49" />
   </category>
 </configuration>

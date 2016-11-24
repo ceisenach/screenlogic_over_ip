@@ -11,14 +11,31 @@ g_comm.OnConnectFailedFunc = OnConnectFailed;
 
 var reconnnect_timer = new Timer();
 var ping_timer = new Timer();
+var status_update_timer = new Timer();
+var status_update_interval = 1000;
 var reconnect_interval = 500;
 var ping_interval = 16000;
 var LOGGED_IN = 0;
 var PENTAIR_PORT = 80;
 var PENTAIR_IP = Config.Get('Pentair_IP');
+var NumCircuits = Config.Get('Num_Pool_Circuits');
 
 var MESSAGE_QUEUE = new_zeroed_array(100);
 var MESSAGE_QUEUE_NEXT = 0;
+
+var CIRCUITS_MAP = {};
+
+//open connection, start status timer
+build_circuits_map_from_config();
+g_comm.Open(PENTAIR_IP, PENTAIR_PORT);
+status_update_timer.Start(On_status_update_timer,status_update_interval);
+
+
+function build_circuits_map_from_config() {
+    for(i=1;i <= NumCircuits; i++) {
+        CIRCUITS_MAP[Config.Get('CircuitID_'+i).toString()] = 'PENTAIR_circuit'+i+'state';
+    }
+}
 
 //
 // Internal Functions
@@ -106,6 +123,21 @@ function Pool_Set_Buttonpress(ControllerIndex,CircuitID,OnOff) {
     return msg;
 }
 
+function Pool_Get_Status(){
+    var hdr = new Array(4);
+    hdr[0] = get_word32_byte3(0);
+    hdr[1] = get_word32_byte2(0);
+    hdr[2] = get_word32_byte3(12526);
+    hdr[3] = get_word32_byte2(12526);
+    var data_buffer = new Array(4);
+    data_buffer[0] = 0;
+    data_buffer[1] = 0;
+    data_buffer[2] = 0;
+    data_buffer[3] = 0;
+    var msg = decorate_pentair_message(hdr,data_buffer);
+    return msg;
+}
+
 // Send this message to keep connection alive
 function Ping_Message(){
     // see codes - 0,16
@@ -117,6 +149,55 @@ function Ping_Message(){
     var msg = decorate_pentair_message(hdr,null);
     return msg;
 }
+
+/////////////////////////////////////////////////////
+///////////////// PROCESS RESPONSES /////////////////
+/////////////////////////////////////////////////////
+function Pool_Get_Status_Response(data) {
+    const data_offset = 8;
+    var body_count = get_word32_as_little_endian(data,data_offset + 16);
+    if(body_count > 2){
+        body_count = 2;
+    }
+    var cur_idx = 20;
+    for(i=0;i < body_count; i++){
+        cur_idx = cur_idx+24;
+    }
+    const circuit_count = get_word32_as_little_endian(data,data_offset + cur_idx);
+    cur_idx = cur_idx+4;
+    var circuit_ids = new Array(circuit_count);
+    var circuit_states = new Array(circuit_count);
+    var circuit_color_pos = new Array(circuit_count);
+    var circuit_color_stagger = new Array(circuit_count);
+    var circuit_color_delay = new Array(circuit_count);
+    var circuit_color_set = new Array(circuit_count);
+    for(i=0;i < circuit_count;i++){
+        circuit_ids[i] = get_word32_as_little_endian(data,data_offset + cur_idx);
+        cur_idx = cur_idx+4;
+        circuit_states[i] = get_word32_as_little_endian(data,data_offset + cur_idx);
+        cur_idx = cur_idx+4;
+        circuit_color_set[i] = data[data_offset + cur_idx];
+        cur_idx = cur_idx+1;
+        circuit_color_pos[i] = data[data_offset + cur_idx];
+        cur_idx = cur_idx+1;
+        circuit_color_stagger[i] = data[data_offset + cur_idx];
+        cur_idx = cur_idx+1;
+        circuit_color_delay[i] = data[data_offset + cur_idx];
+        cur_idx = cur_idx+1;
+    }
+    //Now update system variables
+    for(i=0;i < circuit_count; i++){
+        var circ_id = circuit_ids[i].toString();
+        if(circ_id in CIRCUITS_MAP){
+            if(circuit_states[i] == 0){
+                SystemVars.Write(CIRCUITS_MAP[circ_id],false);
+            } else {
+                SystemVars.Write(CIRCUITS_MAP[circ_id],true);
+            }
+        }
+    }
+}
+
 
 //////////////////////////////////////////////////////
 //////////////// DATA STRUCTURES /////////////////////
@@ -143,8 +224,16 @@ function dequeue_message() {
 /////////////////// SEND MESSAGES ///////////////////
 /////////////////////////////////////////////////////
 
-function OnCommRX(data){
-	System.LogInfo(1,'PENTAIR DRIVER - Recieved: '+data+'\r\n');
+function OnCommRX(string_dat){
+    var data = unpack_message_fromstring(string_dat);
+    var hdr1 = get_word16_as_little_endian(data,0);
+    var hdr2 = get_word16_as_little_endian(data,2);
+	
+    System.LogInfo(1,'PENTAIR DRIVER - Recieved Message: '+hdr1.toString()+','+hdr2.toString()+'\r\n');
+
+    if(hdr1 == 0 && hdr2 == 12527) {
+        Pool_Get_Status_Response(data);
+    }
 }
 
 
@@ -152,6 +241,7 @@ function OnTCPConnect() {
 	g_comm.SetTxInterMsgDelay(100);
     send_login_after_open();
     LOGGED_IN = 1;
+    ping_timer.Stop();
     ping_timer.Start(On_ping_timer,ping_interval);
 }
 
@@ -180,8 +270,17 @@ function On_ping_timer(){
         const ping_msg = Ping_Message();
         const ping_msg_string = pack_message_tostring(ping_msg);
         g_comm.Write(ping_msg_string);
+        ping_timer.Stop();
         ping_timer.Start(On_ping_timer,ping_interval);
     }
+}
+
+function On_status_update_timer(){
+    System.LogInfo(1,'PENTAIR DRIVER - Updating Circuit Status \r\n');
+    var status_query = Pool_Get_Status();
+    queue_message(status_query);
+    send_message_queue();
+    status_update_timer.Start(On_status_update_timer,status_update_interval)
 }
 
 function send_login_after_open(){

@@ -1,0 +1,54 @@
+<variables>
+	<category name="Circuit States">
+		<variable name="Circuit %%CircuitID_1%%" sysvar="PENTAIR_circuit1state" type="boolean" condition="$Num_Pool_Circuits >= 1" />
+		<variable name="Circuit %%CircuitID_2%%" sysvar="PENTAIR_circuit2state" type="boolean" condition="$Num_Pool_Circuits >= 2" />
+		<variable name="Circuit %%CircuitID_3%%" sysvar="PENTAIR_circuit3state" type="boolean" condition="$Num_Pool_Circuits >= 3" />
+		<variable name="Circuit %%CircuitID_4%%" sysvar="PENTAIR_circuit4state" type="boolean" condition="$Num_Pool_Circuits >= 4" />
+		<variable name="Circuit %%CircuitID_5%%" sysvar="PENTAIR_circuit5state" type="boolean" condition="$Num_Pool_Circuits >= 5" />
+		<variable name="Circuit %%CircuitID_6%%" sysvar="PENTAIR_circuit6state" type="boolean" condition="$Num_Pool_Circuits >= 6" />
+		<variable name="Circuit %%CircuitID_7%%" sysvar="PENTAIR_circuit7state" type="boolean" condition="$Num_Pool_Circuits >= 7" />
+		<variable name="Circuit %%CircuitID_8%%" sysvar="PENTAIR_circuit8state" type="boolean" condition="$Num_Pool_Circuits >= 8" />
+		<variable name="Circuit %%CircuitID_9%%" sysvar="PENTAIR_circuit9state" type="boolean" condition="$Num_Pool_Circuits >= 9" />
+		<variable name="Circuit %%CircuitID_10%%" sysvar="PENTAIR_circuit10state" type="boolean" condition="$Num_Pool_Circuits >= 10" />
+		<variable name="Circuit %%CircuitID_11%%" sysvar="PENTAIR_circuit11state" type="boolean" condition="$Num_Pool_Circuits >= 11" />
+		<variable name="Circuit %%CircuitID_12%%" sysvar="PENTAIR_circuit12state" type="boolean" condition="$Num_Pool_Circuits >= 12" />
+		<variable name="Circuit %%CircuitID_13%%" sysvar="PENTAIR_circuit13state" type="boolean" condition="$Num_Pool_Circuits >= 13" />
+		<variable name="Circuit %%CircuitID_14%%" sysvar="PENTAIR_circuit14state" type="boolean" condition="$Num_Pool_Circuits >= 14" />
+		<variable name="Circuit %%CircuitID_15%%" sysvar="PENTAIR_circuit15state" type="boolean" condition="$Num_Pool_Circuits >= 15" />
+		<variable name="Circuit %%CircuitID_16%%" sysvar="PENTAIR_circuit16state" type="boolean" condition="$Num_Pool_Circuits >= 16" />
+		<variable name="Circuit %%CircuitID_17%%" sysvar="PENTAIR_circuit17state" type="boolean" condition="$Num_Pool_Circuits >= 17" />
+		<variable name="Circuit %%CircuitID_18%%" sysvar="PENTAIR_circuit18state" type="boolean" condition="$Num_Pool_Circuits >= 18" />
+		<variable name="Circuit %%CircuitID_19%%" sysvar="PENTAIR_circuit19state" type="boolean" condition="$Num_Pool_Circuits >= 19" />
+		<variable name="Circuit %%CircuitID_20%%" sysvar="PENTAIR_circuit20state" type="boolean" condition="$Num_Pool_Circuits >= 20" />
+		<variable name="Circuit %%CircuitID_21%%" sysvar="PENTAIR_circuit21state" type="boolean" condition="$Num_Pool_Circuits >= 21" />
+		<variable name="Circuit %%CircuitID_22%%" sysvar="PENTAIR_circuit22state" type="boolean" condition="$Num_Pool_Circuits >= 22" />
+		<variable name="Circuit %%CircuitID_23%%" sysvar="PENTAIR_circuit23state" type="boolean" condition="$Num_Pool_Circuits >= 23" />
+		<variable name="Circuit %%CircuitID_24%%" sysvar="PENTAIR_circuit24state" type="boolean" condition="$Num_Pool_Circuits >= 24" />
+		<variable name="Circuit %%CircuitID_25%%" sysvar="PENTAIR_circuit25state" type="boolean" condition="$Num_Pool_Circuits >= 25" />
+		<variable name="Circuit %%CircuitID_26%%" sysvar="PENTAIR_circuit26state" type="boolean" condition="$Num_Pool_Circuits >= 26" />
+		<variable name="Circuit %%CircuitID_27%%" sysvar="PENTAIR_circuit27state" type="boolean" condition="$Num_Pool_Circuits >= 27" />
+		<variable name="Circuit %%CircuitID_28%%" sysvar="PENTAIR_circuit28state" type="boolean" condition="$Num_Pool_Circuits >= 28" />
+		<variable name="Circuit %%CircuitID_29%%" sysvar="PENTAIR_circuit29state" type="boolean" condition="$Num_Pool_Circuits >= 29" />
+		<variable name="Circuit %%CircuitID_30%%" sysvar="PENTAIR_circuit30state" type="boolean" condition="$Num_Pool_Circuits >= 30" />
+		<variable name="Circuit %%CircuitID_31%%" sysvar="PENTAIR_circuit31state" type="boolean" condition="$Num_Pool_Circuits >= 31" />
+		<variable name="Circuit %%CircuitID_32%%" sysvar="PENTAIR_circuit32state" type="boolean" condition="$Num_Pool_Circuits >= 32" />
+		<variable name="Circuit %%CircuitID_33%%" sysvar="PENTAIR_circuit33state" type="boolean" condition="$Num_Pool_Circuits >= 33" />
+		<variable name="Circuit %%CircuitID_34%%" sysvar="PENTAIR_circuit34state" type="boolean" condition="$Num_Pool_Circuits >= 34" />
+		<variable name="Circuit %%CircuitID_35%%" sysvar="PENTAIR_circuit35state" type="boolean" condition="$Num_Pool_Circuits >= 35" />
+		<variable name="Circuit %%CircuitID_36%%" sysvar="PENTAIR_circuit36state" type="boolean" condition="$Num_Pool_Circuits >= 36" />
+		<variable name="Circuit %%CircuitID_37%%" sysvar="PENTAIR_circuit37state" type="boolean" condition="$Num_Pool_Circuits >= 37" />
+		<variable name="Circuit %%CircuitID_38%%" sysvar="PENTAIR_circuit38state" type="boolean" condition="$Num_Pool_Circuits >= 38" />
+		<variable name="Circuit %%CircuitID_39%%" sysvar="PENTAIR_circuit39state" type="boolean" condition="$Num_Pool_Circuits >= 39" />
+		<variable name="Circuit %%CircuitID_40%%" sysvar="PENTAIR_circuit40state" type="boolean" condition="$Num_Pool_Circuits >= 40" />
+		<variable name="Circuit %%CircuitID_41%%" sysvar="PENTAIR_circuit41state" type="boolean" condition="$Num_Pool_Circuits >= 41" />
+		<variable name="Circuit %%CircuitID_42%%" sysvar="PENTAIR_circuit42state" type="boolean" condition="$Num_Pool_Circuits >= 42" />
+		<variable name="Circuit %%CircuitID_43%%" sysvar="PENTAIR_circuit43state" type="boolean" condition="$Num_Pool_Circuits >= 43" />
+		<variable name="Circuit %%CircuitID_44%%" sysvar="PENTAIR_circuit44state" type="boolean" condition="$Num_Pool_Circuits >= 44" />
+		<variable name="Circuit %%CircuitID_45%%" sysvar="PENTAIR_circuit45state" type="boolean" condition="$Num_Pool_Circuits >= 45" />
+		<variable name="Circuit %%CircuitID_46%%" sysvar="PENTAIR_circuit46state" type="boolean" condition="$Num_Pool_Circuits >= 46" />
+		<variable name="Circuit %%CircuitID_47%%" sysvar="PENTAIR_circuit47state" type="boolean" condition="$Num_Pool_Circuits >= 47" />
+		<variable name="Circuit %%CircuitID_48%%" sysvar="PENTAIR_circuit48state" type="boolean" condition="$Num_Pool_Circuits >= 48" />
+		<variable name="Circuit %%CircuitID_49%%" sysvar="PENTAIR_circuit49state" type="boolean" condition="$Num_Pool_Circuits >= 49" />
+
+	</category>
+</variables>

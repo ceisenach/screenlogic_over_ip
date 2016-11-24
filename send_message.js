@@ -293,6 +293,7 @@ function pentair_connect_and_login() {
     var spahigh_set_msg = Pool_Set_Buttonpress(0,503,1);
     var lights_set_msg = Pool_Colorlights_Command(0,17);
     var ping_msg = Ping_Message();
+    var getstatus_msg = Pool_Get_Status();
 
     const net = require('net');
     const client = net.connect({host: LOCATED_SYSTEM.pentair_ip, port: LOCATED_SYSTEM.pentair_comm_port}, () => {
@@ -303,7 +304,8 @@ function pentair_connect_and_login() {
 
         /// Example of sending messages
         setTimeout(() => {client.write(control_config_query_msg);},200);
-        setTimeout(() => {client.write(ping_msg);},300);
+        setTimeout(() => {client.write(getstatus_msg);},300);
+        //setTimeout(() => {client.write(ping_msg);},300);
         //setTimeout(() => {client.write(lights_set_msg);},300);
         //setTimeout(() => {client.write(spahigh_set_msg);},400);
         //setTimeout(() => {client.write(heatmode_set_msg);},400);
@@ -335,6 +337,83 @@ function process_pentair_response(data){
 
     if(hdr1 == 0 && hdr2 == Pool_Controller_Configuration_Response_Code) {
         Pool_Controller_Configuration_Response(data);
+    }
+    if(hdr1 == 0 && hdr2 == 12527) {
+        Pool_Get_Status_Response(data);
+    }
+}
+
+function Pool_Get_Status_Response(data) {
+    const data_offset = 8;
+    console.log('-------------------------------------------');
+    console.log('--- RECEIVED POOL STATUS');
+    console.log('-------------------------------------------');
+    console.log('\tCheck: '+get_word32_as_little_endian(data,data_offset + 0));
+    console.log('\tFreeze Mode: '+data[data_offset + 4]);
+    console.log('\tRemotes: '+data[data_offset + 5]);
+    console.log('\tPool Delay: '+data[data_offset + 6]);
+    console.log('\tSpa Delay: '+data[data_offset + 7]);
+    console.log('\tCleaner Delay: '+data[data_offset + 8]);
+    console.log('\tAir Temperature: '+get_word32_as_little_endian(data,data_offset + 12));
+    var body_count = get_word32_as_little_endian(data,data_offset + 16);
+    console.log('\tBody Count: '+ body_count);
+    if(body_count > 2){
+        body_count = 2;
+    }
+    var current_temps = new Array(2);
+    var heat_statuses = new Array(2);
+    var set_points = new Array(2);
+    var cool_set_points = new Array(2);
+    var heat_mode = new Array(2);
+    var cur_idx = 20;
+    for(i=0;i < body_count; i++){
+        cur_idx = cur_idx+4;
+        console.log('\tBody '+ i);
+        current_temps[i] = get_word32_as_little_endian(data,data_offset + cur_idx);
+        console.log('\t\tCurrent Temp: '+ current_temps[i]);
+        cur_idx = cur_idx + 4;
+        heat_statuses[i] = get_word32_as_little_endian(data,data_offset + cur_idx);
+        console.log('\t\tHeat Status: '+ heat_statuses[i]);
+        cur_idx = cur_idx + 4;
+        set_points[i] = get_word32_as_little_endian(data,data_offset + cur_idx);
+        console.log('\t\tSet Point: '+ set_points[i]);
+        cur_idx = cur_idx + 4;
+        cool_set_points[i] = get_word32_as_little_endian(data,data_offset + cur_idx);
+        console.log('\t\tCool Set Points: '+ cool_set_points[i]);
+        cur_idx = cur_idx + 4;
+        heat_mode[i] = get_word32_as_little_endian(data,data_offset + cur_idx);
+        cur_idx = cur_idx + 4;
+        console.log('\t\tHeat Mode: '+ heat_mode[i]);
+    }
+    const circuit_count = get_word32_as_little_endian(data,data_offset + cur_idx);
+    cur_idx = cur_idx+4;
+    var circuit_ids = new Array(circuit_count);
+    var circuit_states = new Array(circuit_count);
+    var circuit_color_pos = new Array(circuit_count);
+    var circuit_color_stagger = new Array(circuit_count);
+    var circuit_color_delay = new Array(circuit_count);
+    var circuit_color_set = new Array(circuit_count);
+    console.log('\tCircuit Count: '+circuit_count);
+    for(i=0;i < circuit_count;i++){
+        console.log('\tCircuit: '+i);
+        circuit_ids[i] = get_word32_as_little_endian(data,data_offset + cur_idx);
+        console.log('\t\tCircuit ID:' + circuit_ids[i]);
+        cur_idx = cur_idx+4;
+        circuit_states[i] = get_word32_as_little_endian(data,data_offset + cur_idx);
+        console.log('\t\tCircuit State:' + circuit_states[i]);
+        cur_idx = cur_idx+4;
+        circuit_color_set[i] = data[data_offset + cur_idx];
+        console.log('\t\tCircuit Color Set:' + circuit_color_set[i]);
+        cur_idx = cur_idx+1;
+        circuit_color_pos[i] = data[data_offset + cur_idx];
+        console.log('\t\tCircuit Color Pos:' + circuit_color_pos[i]);
+        cur_idx = cur_idx+1;
+        circuit_color_stagger[i] = data[data_offset + cur_idx];
+        console.log('\t\tCircuit Color Stagger:' + circuit_color_stagger[i]);
+        cur_idx = cur_idx+1;
+        circuit_color_delay[i] = data[data_offset + cur_idx];
+        console.log('\t\tCircuit Color Delay:' + circuit_color_delay[i]);
+        cur_idx = cur_idx+1;
     }
 }
 
@@ -521,6 +600,21 @@ function Ping_Message(){
     hdr[2] = get_word32_byte3(16);
     hdr[3] = get_word32_byte2(16);
     var msg = decorate_pentair_message(hdr,null);
+    return msg;
+}
+
+function Pool_Get_Status(){
+    var hdr = Buffer.alloc(4);
+    hdr[0] = get_word32_byte3(0);
+    hdr[1] = get_word32_byte2(0);
+    hdr[2] = get_word32_byte3(12526);
+    hdr[3] = get_word32_byte2(12526);
+    var data_buffer = Buffer.alloc(4);
+    data_buffer[0] = 0;
+    data_buffer[1] = 0;
+    data_buffer[2] = 0;
+    data_buffer[3] = 0;
+    var msg = decorate_pentair_message(hdr,data_buffer);
     return msg;
 }
 
