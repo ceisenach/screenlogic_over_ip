@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<driverManifest>
+	<driver
+		id="{F062A1C4-7A7D-4E9E-B8BB-35C7901D7763}"
+		name="Pentair Driver"
+		author="Carson Eisenach"
+		copyright="Carson Eisenach 2016"
+		deviceManufacturer="pentair"
+		deviceModel="pentair"
+		driverVersion="1.0"
+		minimumRuntimeVersion="1"		
+		minimumSoftwareVersion="9.7"
+		processorType="XP-8"
+		configSettingsStream="ConfigSettings.xml"
+	    systemFunctionsStream="SystemFunctions.xml"
+		helpTextStream="instructions.rtf">
+		<processorScript stream="data_utilities.js" />
+		<processorScript stream="pentair_commands.js" />
+		<package>
+			<output filename="pentair" public="false"/>
+			<description>
+				Pentair IP RTI Driver
+			</description>
+		</package>
+	</driver>
+</driverManifest>

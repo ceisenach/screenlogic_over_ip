@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<functions>
+	<category name="Pentair IP Control">
+		<function name="Control Circuit" export="MSGControlCircuit" repeatrate="0">
+			<parameter name="CircuitID" type="integer" description="Circuit ID to control" />
+			<parameter name="NewState" type="integer" description="0 is off. 1 is on." />
+		</function>
+	</category>
+</functions>
