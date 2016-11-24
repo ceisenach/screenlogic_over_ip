@@ -292,6 +292,7 @@ function pentair_connect_and_login() {
     var heatmode_set_msg = Pool_Set_Heat_Mode(0,1,3);
     var spahigh_set_msg = Pool_Set_Buttonpress(0,503,1);
     var lights_set_msg = Pool_Colorlights_Command(0,17);
+    var ping_msg = Ping_Message();
 
     const net = require('net');
     const client = net.connect({host: LOCATED_SYSTEM.pentair_ip, port: LOCATED_SYSTEM.pentair_comm_port}, () => {
@@ -302,6 +303,7 @@ function pentair_connect_and_login() {
 
         /// Example of sending messages
         setTimeout(() => {client.write(control_config_query_msg);},200);
+        setTimeout(() => {client.write(ping_msg);},300);
         //setTimeout(() => {client.write(lights_set_msg);},300);
         //setTimeout(() => {client.write(spahigh_set_msg);},400);
         //setTimeout(() => {client.write(heatmode_set_msg);},400);
@@ -507,6 +509,18 @@ function Pool_Colorlights_Command(ControllerIndex,cmd) {
     data_buffer = push_word32_to_buffer(data_buffer,cmd);
 
     var msg = decorate_pentair_message(hdr,data_buffer);
+    return msg;
+}
+
+// Send this message to keep connection alive
+function Ping_Message(){
+    // see codes - 0,16
+    var hdr = Buffer.alloc(4);
+    hdr[0] = get_word32_byte3(0);
+    hdr[1] = get_word32_byte2(0);
+    hdr[2] = get_word32_byte3(16);
+    hdr[3] = get_word32_byte2(16);
+    var msg = decorate_pentair_message(hdr,null);
     return msg;
 }
 

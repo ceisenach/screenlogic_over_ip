@@ -4,7 +4,25 @@
 
 System.Print("Pentair Driver: Initializing...\r\n");
 
+var g_comm = new TCP(OnCommRX);
+g_comm.OnConnectFunc = OnTCPConnect;
+g_comm.OnDisconnectFunc = OnTCPDisconnect;
+g_comm.OnConnectFailedFunc = OnConnectFailed;
 
+var reconnnect_timer = new Timer();
+var ping_timer = new Timer();
+var reconnect_interval = 500;
+var ping_interval = 16000;
+var LOGGED_IN = 0;
+var PENTAIR_PORT = 80;
+var PENTAIR_IP = Config.Get('Pentair_IP');
+
+var MESSAGE_QUEUE = new_zeroed_array(100);
+var MESSAGE_QUEUE_NEXT = 0;
+
+//
+// Internal Functions
+//
 
 /////////////////////////////////////////////////////////////
 /////////////// CREATE MESSAGES /////////////////////////////
@@ -88,30 +106,34 @@ function Pool_Set_Buttonpress(ControllerIndex,CircuitID,OnOff) {
     return msg;
 }
 
+// Send this message to keep connection alive
+function Ping_Message(){
+    // see codes - 0,16
+    var hdr = new Array(4);
+    hdr[0] = get_word32_byte3(0);
+    hdr[1] = get_word32_byte2(0);
+    hdr[2] = get_word32_byte3(16);
+    hdr[3] = get_word32_byte2(16);
+    var msg = decorate_pentair_message(hdr,null);
+    return msg;
+}
+
 //////////////////////////////////////////////////////
 //////////////// DATA STRUCTURES /////////////////////
 //////////////////////////////////////////////////////
-var MESSAGE_STACK_POINTERS = new_zeroed_array(50);
-var MESSAGE_STACK = new_zeroed_array(1000);
-var MESSAGE_STACK_TOP = 0;
 
-
-function push_message(message) {
-	next_blank = MESSAGE_STACK_POINTERS[MESSAGE_STACK_TOP];
-	MESSAGE_STACK_TOP = MESSAGE_STACK_TOP + 1;
-	MESSAGE_STACK_POINTERS[MESSAGE_STACK_TOP] = next_blank + message.length;
-	for(i=0;i < message.length; i++) {
-		MESSAGE_STACK[next_blank+i] = message[i];
-	}
+function queue_message(message) {
+    MESSAGE_QUEUE[MESSAGE_QUEUE_NEXT] = message;
+	MESSAGE_QUEUE_NEXT = MESSAGE_QUEUE_NEXT + 1;
 }
 
-function pop_message() {
-	if (MESSAGE_STACK_TOP > 0) {
-		var cur_top = MESSAGE_STACK_TOP;
-		var message_start = MESSAGE_STACK_POINTERS[cur_top - 1];
-		var message_end = MESSAGE_STACK_POINTERS[cur_top];
-		var message = MESSAGE_STACK.slice(message_start,message_end);
-		MESSAGE_STACK_TOP = MESSAGE_STACK_TOP - 1;
+function dequeue_message() {
+	if (MESSAGE_QUEUE_NEXT > 0) {
+		var message = MESSAGE_QUEUE[0];
+        for(i=1;i < MESSAGE_QUEUE_NEXT;i++){
+            MESSAGE_QUEUE[i-1] = MESSAGE_QUEUE[i];
+        }
+        MESSAGE_QUEUE_NEXT = MESSAGE_QUEUE_NEXT - 1;
 		return message;
 	}
 	return null;
@@ -120,10 +142,6 @@ function pop_message() {
 /////////////////////////////////////////////////////
 /////////////////// SEND MESSAGES ///////////////////
 /////////////////////////////////////////////////////
-var g_comm = new TCP(OnCommRX);
-g_comm.OnConnectFunc = OnTCPConnect;
-g_comm.OnDisconnectFunc = OnTCPDisconnect;
-g_comm.OnConnectFailedFunc = OnConnectFailed;
 
 function OnCommRX(data){
 	System.LogInfo(1,'PENTAIR DRIVER - Recieved: '+data+'\r\n');
@@ -132,47 +150,78 @@ function OnCommRX(data){
 
 function OnTCPConnect() {
 	g_comm.SetTxInterMsgDelay(100);
-	message = pop_message();
-	while(message != null){
-		System.LogInfo(1,'PENTAIR DRIVER - Sending Message\r\n');
-		msg_string = pack_message_tostring(message);
-		g_comm.Write(msg_string);
-		message = pop_message();
-	}
+    send_login_after_open();
+    LOGGED_IN = 1;
+    ping_timer.Start(On_ping_timer,ping_interval);
 }
 
 function OnTCPDisconnect() {
 	System.LogInfo(1,"PENTAIR DRIVER - Disconnected From Pentair System\r\n");
-	g_comm.Close();
+    g_comm.Close();
+    LOGGED_IN = 0;
+    reconnnect_timer.Start(On_reconnect_timer,reconnect_interval);
 }
 
 function OnConnectFailed() {
 	System.LogInfo(3,"PENTAIR DRIVER - Did Not Connect to Pentair System\r\n");
-	g_comm.Close();
+    g_comm.Close();
+    LOGGED_IN = 0;
+    g_comm.Open(PENTAIR_IP,PENTAIR_PORT);
+}
+
+function On_reconnect_timer(){
+    System.LogInfo(1,'PENTAIR DRIVER - Trying to reconnect\r\n');
+    g_comm.Open(PENTAIR_IP,PENTAIR_PORT);
+}
+
+function On_ping_timer(){
+    System.LogInfo(1,'PENTAIR DRIVER - Sending ping message\r\n');
+    if(LOGGED_IN == 1){
+        const ping_msg = Ping_Message();
+        const ping_msg_string = pack_message_tostring(ping_msg);
+        g_comm.Write(ping_msg_string);
+        ping_timer.Start(On_ping_timer,ping_interval);
+    }
+}
+
+function send_login_after_open(){
+    System.LogInfo(1,'PENTAIR DRIVER - Sending Login Message\r\n');
+
+    const scm = create_incoming_connection_message();
+
+    var empty_data = new_zeroed_array(16);
+    var login_data = create_login_message_data(348,0,'Android',empty_data,2);
+    var login_headers = new_zeroed_array(4);
+    login_headers[0] = get_word32_byte3(0);
+    login_headers[1] = get_word32_byte2(0);
+    login_headers[2] = get_word32_byte3(27);
+    login_headers[3] = get_word32_byte2(27);
+    var login_msg = decorate_pentair_message(login_headers,login_data);
+    
+    var login_msg_string = pack_message_tostring(login_msg);
+    var scm_msg_string = pack_message_tostring(scm)
+    g_comm.Write(scm_msg_string);
+    g_comm.Write(login_msg_string);
+}
+
+function send_message_queue(){
+    if(LOGGED_IN == 0){
+        var openState = g_comm.Open(PENTAIR_IP, PENTAIR_PORT);
+    }
+    var message = dequeue_message();
+    while(message != null){
+        System.LogInfo(1,'PENTAIR DRIVER - Sending Message\r\n');
+        msg_string = pack_message_tostring(message);
+        g_comm.Write(msg_string);
+        message = dequeue_message();
+    }
 }
 
 //
 //  External Functions
 //
 function MSGControlCircuit(circ_id,state) {
-	g_comm.Close();
-
-    const scm = create_incoming_connection_message();
-    var empty_data = new_zeroed_array(16);
-    var login_data = create_login_message_data(348,0,'Android',empty_data,2);
-    var login_headers = new_zeroed_array(4);
-
-    login_headers[0] = get_word32_byte3(0);
-    login_headers[1] = get_word32_byte2(0);
-    login_headers[2] = get_word32_byte3(27);
-    login_headers[3] = get_word32_byte2(27);
-
-    var login_msg = decorate_pentair_message(login_headers,login_data);
     var circuit_set_msg = Pool_Set_Buttonpress(0,circ_id,state);
-
-    push_message(circuit_set_msg);
-    push_message(login_msg);
-    push_message(scm);
-
-	var openState = g_comm.Open(Config.Get('Pentair_IP'), 80);
+    queue_message(circuit_set_msg);
+    send_message_queue();
 }
