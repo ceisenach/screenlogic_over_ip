@@ -7,7 +7,7 @@
 		copyright="Carson Eisenach 2016"
 		deviceManufacturer="pentair"
 		deviceModel="pentair"
-		driverVersion="1.3"
+		driverVersion="1.4"
 		minimumRuntimeVersion="1"		
 		minimumSoftwareVersion="9.7"
 		processorType="XP-8"

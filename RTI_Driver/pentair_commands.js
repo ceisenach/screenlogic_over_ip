@@ -4,18 +4,28 @@
 
 System.Print("Pentair Driver: Initializing...\r\n");
 
+// communicator
 var g_comm = new TCP(OnCommRX);
 g_comm.OnConnectFunc = OnTCPConnect;
 g_comm.OnDisconnectFunc = OnTCPDisconnect;
 g_comm.OnConnectFailedFunc = OnConnectFailed;
 
+// Timers
 var reconnnect_timer = new Timer();
 var ping_timer = new Timer();
 var status_update_timer = new Timer();
+var longterm_reconnect = new ScheduledEvent(On_longterm_reconnect,"Periodic","Minutes",60);
+var connect_success_timer = new Timer();
+
 var status_update_interval = 1000;
+var successful_connection_interval = 3000;
 var reconnect_interval = 500;
 var ping_interval = 16000;
+
+// Status / Global Vars
 var LOGGED_IN = 0;
+var CONSECUTIVE_RECONNECT_FAILURES = 0;
+var CONSECUTIVE_RECONNECT_FAILURES_MAX = 1000;
 var PENTAIR_PORT = 80;
 var PENTAIR_IP = Config.Get('Pentair_IP');
 var NumCircuits = Config.Get('Num_Pool_Circuits');
@@ -29,6 +39,7 @@ var CIRCUITS_MAP = {};
 build_circuits_map_from_config();
 g_comm.Open(PENTAIR_IP, PENTAIR_PORT);
 status_update_timer.Start(On_status_update_timer,status_update_interval);
+longterm_reconnect.Enable();
 
 
 function build_circuits_map_from_config() {
@@ -240,8 +251,16 @@ function OnCommRX(string_dat){
 function OnTCPConnect() {
 	g_comm.SetTxInterMsgDelay(100);
     send_login_after_open();
+
+    // Update Status
     LOGGED_IN = 1;
+    CONSECUTIVE_RECONNECT_FAILURES = CONSECUTIVE_RECONNECT_FAILURES + 1;
+
+    // Reset and Start Timers
     ping_timer.Stop();
+    reconnnect_timer.Stop();
+    connect_success_timer.Stop();
+    connect_success_timer.Start(On_successful_connect_timer,successful_connection_interval);
     ping_timer.Start(On_ping_timer,ping_interval);
 }
 
@@ -249,14 +268,22 @@ function OnTCPDisconnect() {
 	System.LogInfo(1,"PENTAIR DRIVER - Disconnected From Pentair System\r\n");
     g_comm.Close();
     LOGGED_IN = 0;
-    reconnnect_timer.Start(On_reconnect_timer,reconnect_interval);
+    ping_timer.Stop();
+    reconnnect_timer.Stop();
+    connect_success_timer.Stop();
+    if( CONSECUTIVE_RECONNECT_FAILURES < CONSECUTIVE_RECONNECT_FAILURES_MAX ){
+        reconnnect_timer.Start(On_reconnect_timer,reconnect_interval);
+    }   
 }
 
 function OnConnectFailed() {
 	System.LogInfo(3,"PENTAIR DRIVER - Did Not Connect to Pentair System\r\n");
     g_comm.Close();
     LOGGED_IN = 0;
-    g_comm.Open(PENTAIR_IP,PENTAIR_PORT);
+    connect_success_timer.Stop();
+    if( CONSECUTIVE_RECONNECT_FAILURES < CONSECUTIVE_RECONNECT_FAILURES_MAX ){
+        g_comm.Open(PENTAIR_IP,PENTAIR_PORT);
+    }
 }
 
 function On_reconnect_timer(){
@@ -275,12 +302,31 @@ function On_ping_timer(){
     }
 }
 
+function On_longterm_reconnect(){
+    System.LogInfo(1,'PENTAIR DRIVER - Longterm Connection Check\r\n');
+    if(LOGGED_IN == 0){
+        g_comm.Open(PENTAIR_IP,PENTAIR_PORT);
+    }
+}
+
+function On_successful_connect_timer() {
+    System.LogInfo(1,'PENTAIR DRIVER - Log In and Connect Successful\r\n');
+    CONSECUTIVE_RECONNECT_FAILURES = 0;
+}
+
 function On_status_update_timer(){
     System.LogInfo(1,'PENTAIR DRIVER - Updating Circuit Status \r\n');
     var status_query = Pool_Get_Status();
     queue_message(status_query);
     send_message_queue();
-    status_update_timer.Start(On_status_update_timer,status_update_interval)
+    if(CONSECUTIVE_RECONNECT_FAILURES < CONSECUTIVE_RECONNECT_FAILURES_MAX){
+        status_update_timer.Start(On_status_update_timer,status_update_interval);
+    } else{
+        //set all to false
+        for(var circ_id in CIRCUITS_MAP){
+            SystemVars.Write(CIRCUITS_MAP[circ_id],false);
+        }
+    }
 }
 
 function send_login_after_open(){
