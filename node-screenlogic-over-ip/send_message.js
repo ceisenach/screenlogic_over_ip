@@ -300,11 +300,12 @@ function pentair_connect_and_login() {
         // 'connect' listener
         console.log('Connected to Pentair Server! Logging in...');
         client.write(scm);
+        // console.log(getstatus_msg)
         setTimeout(() => {client.write(login_msg);},100);
 
-        /// Example of sending messages
+        // /// Example of sending messages
         setTimeout(() => {client.write(control_config_query_msg);},200);
-        setTimeout(() => {client.write(getstatus_msg);},300);
+        // setTimeout(() => {client.write(getstatus_msg);},300);
         //setTimeout(() => {client.write(ping_msg);},300);
         //setTimeout(() => {client.write(lights_set_msg);},300);
         //setTimeout(() => {client.write(spahigh_set_msg);},400);

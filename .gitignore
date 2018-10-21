@@ -1,1 +1,7 @@
 *.exe
+*.synctex.gz
+*.aux
+*.out
+*.log
+*.fls
+*.fdb_latexmk

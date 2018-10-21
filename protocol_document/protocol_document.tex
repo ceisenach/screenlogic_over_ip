@@ -1,0 +1,944 @@
+\documentclass[11pt]{article}
+\usepackage{enumerate}
+\usepackage[OT1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{natbib}
+\usepackage[usenames]{color}
+\usepackage{multirow}
+\usepackage[colorlinks,linkcolor=red,anchorcolor=blue,citecolor=blue]{hyperref}
+\usepackage{mathrsfs}
+\usepackage{fullpage}
+\usepackage{hyperref}
+\usepackage{bytefield}
+\usepackage[protrusion=true,expansion=true, final, babel]{microtype}
+\usepackage{forest}
+\usepackage{enumitem}
+\allowdisplaybreaks
+
+
+\begin{document}
+
+\title{Pentair ScreenLogic IP Communication Protocol}
+\author{Carson M Eisenach}
+
+\maketitle
+
+\noindent{\color{red}{\bf DISCLAIMER/NOTICE: The information contained herein is intended for educational purposes only. Please do not reproduce without acknowledgement.}}
+
+
+\section{General Comments}
+All numeric data is transmitted in little endian format. Unless otherwise specified, it should be assumed that it is in little endian format. Assume that integers are 4 bytes and shorts is 2 bytes. When describing the messages to be sent or received, Anything in square brackets should be interpreted as comments, clarifying what each field means.
+
+\section{Find Pentair Systems on LAN}
+To locate the Pentair system, broadcast the system locator UDP datagram. The server will then respond as described below.
+\\
+\noindent{\bf System Locator Datagram: }
+\small
+\begin{itemize}
+\item{\bf Address:} 255.255.255.255
+\item{\bf Port:} 1444
+\item{\bf Data:} Size - 8 bytes. Given below in order -- 
+\begin{center}
+\begin{bytefield}[bitwidth=2em]{8}
+\bitheader{0-7} \\
+\bitbox{1}{1} & \bitbox{1}{0} & \bitbox{1}{0} & \bitbox{1}{0} & \bitbox{1}{0} & 
+\bitbox{1}{0} & \bitbox{1}{0} & \bitbox{1}{0}
+\end{bytefield}
+\end{center}
+\end{itemize}
+
+
+\noindent{\bf System Locator Response: }
+\small
+\begin{itemize}
+\item{\bf Data:} Size - 12 bytes. Given below in order --
+\footnotesize
+\begin{itemize}
+\item (bytes 0-3) Check digit (CHK)
+\item (byte 4) Ip address 1 (IP1)
+\item (byte 5) Ip address 2 (IP2)
+\item (byte 6) Ip address 3 (IP3)
+\item (byte 7) Ip address 4 (IP4)
+\item (bytes 8-9) TCP Communication Port (PORT)
+\item (byte 10) Gateway Type (GT)]
+\item (byte 11) Gateway Subtype (GS)
+\end{itemize}
+\end{itemize}
+\normalsize
+\begin{center}
+\begin{bytefield}[bitwidth=2.5em]{12}
+\bitheader{0-11} \\
+\bitbox{4}{CHK}  & \bitbox{1}{IP1} & \bitbox{1}{IP2} & \bitbox{1}{IP3} & \bitbox{1}{IP4} & \bitbox{2}{PORT}
+& \bitbox{1}{GT} & \bitbox{1}{GS}
+\end{bytefield}
+\end{center}
+The Check Digit should be 2 (in little endian format). If it is not, an unknown error occured.
+
+\section{Protocol Overview}
+Typically the pentair intellitouch will communicate on port 80 (though this is allowed to vary). It communicates via the TCP protocol. Connect to the IP address and Port found using the system locator datagram and response. The ScreenLogic will close the connection if no messages are received for a certain amount of time (unknown how long). To prevent being logged out, the client should send a special ping message {\color{red}(MORE ON THIS TO COME)}. In lieu of the special ping message, for the time being, the client can just sent a request for information it doesn't need to maintain the connection (\ref{msg:12532} for example).
+
+\subsection{LAN Login}
+Upon establishing connection with the server, the first communication is the login message. The first message is the incoming connection message, indicating that the next message will be the login message. Here, only the local (LAN) login message is described, but it is possible to send a remote login as well.
+\\\\
+\noindent{\bf Initial Connection Message: } This message is the string ``CONNECTSERVERHOST'' followed by CR LF CR LF (ASCII Codes 13 10 13 10).
+\begin{center}
+\begin{bytefield}[bitwidth=2em]{21}
+\bitheader{0,17,18,19,20} \\
+\bitbox{17}{CONNECTSERVERHOST} & \bitbox{1}{CR} & \bitbox{1}{LF} & \bitbox{1}{CR} & \bitbox{1}{LF}
+\end{bytefield}
+\end{center}
+The server will not respond to this message. In Section \ref{sec:pool_mess} the Login message is described as it follows the same format as all other messages.
+
+\subsection{Remote Login}
+Uses port 500 at screenlogicserver.pentair.com.
+
+\subsection{Sending and Receiving Messages}
+Once logged in, you can send and receive the messages described in Section \ref{sec:pool_mess}. The messages detailed in Section \ref{sec:pool_mess} are a subset of all possible messages, which are listed in Appendix \ref{sec:pool_messages_list}.
+
+The messages are sent and received as the {\it data section} of a TCP packet. The term {\it header} when used below will not refer to the TCP headers but rather to the {\it Pool Message} headers. {\it Pool Message} refers to messages sent and received from the ScreenLogic2 device after successful login as these messages pertain to pool control and information queries. {\it Control Messages} refer to messages regarding login, etc to establish a connection with the ScreenLogic. The message format is given in Figure \ref{fig:generic_layout}.
+\begin{figure}[h]
+\centering
+\begin{bytefield}[bitwidth=2.75em]{16}
+\bitheader{0,2,4,8} \\
+\bitbox{2}{MSG CD 1} & \bitbox{2}{MSG CD 2} & \bitbox{4}{Data Size} & \bitbox{8}{Message Data (Parameters)}
+\end{bytefield}
+\caption{Generic Message Layout. The numbers refer to byte position (word position), {\it not} bit position. The first four bytes give the message code, but we display it here split into two short-words as this is a useful interpretation.}
+\label{fig:generic_layout}
+\end{figure}
+
+As shown, all messages consist of an 8 byte header followed optionally by a sequence of data bytes. The first 4 bytes give the message code and the second 4 bytes give the size of the data section (potentially zero).
+
+\section{Pool Messages -- Pool Data and Pool Control Queries}
+\label{sec:pool_mess}
+This section describes messages sent after login for pool control and query. The data (if applicable) for each message will be described as a sequence of {\it parameters}. These fields appear in order in the data portion of the message. The datatype of the field will be given before it. The data-types given should be interpreted as the sizes in ISO C or Java. There is no padding between data elements as the message codes will indicate how the data section is to be read by the recipient.
+
+With regards to Strings, the encoding is one byte per character. The string encoding is preceded by an integer representing the string length. Finally, the encoding of the string portion is padded to be a multiple of 4. See Figure \ref{fig:String_layout}.
+\begin{figure}[h]
+\centering
+\begin{bytefield}[bitwidth=2em]{20}
+\bitheader{0, 4, 12} \\
+\bitbox{4}{Size} & \bitbox{8}{String } & \bitbox{8}{Padding}
+\end{bytefield}
+\caption{String Encoding Layout.}
+\label{fig:String_layout}
+\end{figure}
+
+With regards to Times, the encoding is one short-integer (2 bytes) per field in the following order: Year, Month, Day of the Week (0-6), Day, Hour, Minute, Second, Millisecond. See Figure \ref{fig:time_layout}
+\begin{figure}[h]
+\centering
+\begin{bytefield}[bitwidth=2.7em]{20}
+\bitheader{0, 2, 4,6,8,10,12,14} \\
+\bitbox{2}{Year} & \bitbox{2}{Month} & \bitbox{2}{Day of Week} & \bitbox{2}{Day} & \bitbox{2}{Hour} & \bitbox{2}{Minute} & \bitbox{2}{Second} & \bitbox{2}{Millisecond} 
+\end{bytefield}
+\caption{Time Encoding Layout.}
+\label{fig:time_layout}
+\end{figure}
+
+The messages described in this section are the message codes listed in \ref{sec:pool_messages_list}. Not all codes appear to be used, but it is possible the server might respond. The format of each message description will be\\\\
+{\bf Message Codes: } MSG CD 1,MSG CD 2\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (type 1) Field 1
+\item (type 2) Field 2\\
+$\cdots\cdots\cdots\cdots$
+\end{itemize}
+\normalsize
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\subsection{Client Messages}
+Messages sent from the client to the ScreenLogic.
+
+\subsubsection{Add Client (Query)}
+\label{msg:12522}
+{\bf Message Codes: } 0,12522\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [use 0]
+\item (int) Sender ID
+\end{itemize}
+\normalsize
+
+\subsubsection{Button Press (Query)}
+\label{msg:12544}
+Sends button press to ScreenLogic. Use to control turning circuits on and off.\\
+{\bf Message Codes: } 0,12530\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [use 0]
+\item (int) Circuit ID
+\item (int) New State [0 == Off, 1 == On]
+\end{itemize}
+\normalsize
+
+\subsubsection{Color Lights Command (Query)}
+\label{msg:12556}
+{\bf Message Codes: } ID,12556\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [use 0]
+\item (int) Pool Command
+\end{itemize}
+\normalsize
+ID can be any random number. Pool Command is the command sent to the lights. 0 = Off, 1 = On, 2 = Set, 3 = Sync, 4 = Swim, 5 = Party, 6 = Romantic, 7 = Caribbean, 8 = American, 9 = Sun, 10 = Royal,
+11 = Save, 12 = Recall, 13 = Blue, 14 = Green, 15 = Red, 16 = White, 17 = Magenta, 18 = Thumper, 19 = Next Mode, 20 = Reset, 21 = Hold. See IntelliBrite reference for more details on the meanings.
+
+\subsubsection{Configure Light (Query)}
+\label{msg:12554}
+{\bf Message Codes: } 0,12554\\
+Appears to be unused.
+
+\subsubsection{Delete Scheduled Event By ID (Query)}
+\label{msg:12546}
+{\bf Message Codes: } 0,12546\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) 0
+\item (int) Event ID
+\end{itemize}
+\normalsize
+
+\subsubsection{Enable Remotes (Query)}
+\label{msg:12578}
+{\bf Message Codes: } 0,12578\\
+Appears to be unused.
+
+\subsubsection{Get All Custom Names (Query)}
+\label{msg:12562}
+{\bf Message Codes: } 0,12562\\
+Appears to be unused.
+
+\subsubsection{Get All Errors (Query)}
+\label{msg:12582}
+{\bf Message Codes: } 0,12582\\
+Appears to be unused.
+
+\subsubsection{Get All Chem Data (Query)}
+\label{msg:12592}
+{\bf Message Codes: } 0,12592\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [use 0]
+\end{itemize}
+\normalsize
+
+\subsubsection{Get Chem History Data (Query)}
+\label{msg:12596}
+{\bf Message Codes: } 0,12596\\
+Appears to be unused.
+
+\subsubsection{Get Circuit Definitions (Query)}
+\label{msg:12510}
+{\bf Message Codes: } 0,12510\\
+Appears to be unused.
+
+\subsubsection{Get Circuit Info By ID (Query)}
+\label{msg:12518}
+{\bf Message Codes: } 0,12518\\
+Appears to be unused.
+
+\subsubsection{Get Circuit Names (Query)}
+\label{msg:12560}
+{\bf Message Codes: } 0,12560\\
+Appears to be unused.
+
+\subsubsection{Get Controller Configuration (Query)}
+\label{msg:12532}
+{\bf Message Codes: } 0,12532\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) 0
+\item (int) 0
+\end{itemize}
+\normalsize
+
+\subsubsection{Get Equipment Configuration (Query)}
+\label{msg:12566}
+{\bf Message Codes: } 0,12566\\
+Appears to be unused.
+
+\subsubsection{Get History (Query)}
+\label{msg:12534}
+{\bf Message Codes: } 0,12534\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [use 0]
+\item (Time) Start Time
+\item (Time) End Time
+\item (int) Sender ID
+\end{itemize}
+\normalsize
+Sender ID is not important.
+
+\subsubsection{Get N Circuits (Query)}
+\label{msg:12558}
+{\bf Message Codes: } 0,12558\\
+Appears to be unused.
+
+\subsubsection{Get Pump Status (Query)}
+\label{msg:12584}
+{\bf Message Codes: } 0,12584\\
+Appears to be unused.
+
+\subsubsection{Get SCG Configuration (Query)}
+\label{msg:12572}
+{\bf Message Codes: } 0,12572\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [use 0]
+\end{itemize}
+\normalsize
+
+\subsubsection{Get Schedule Data (Query)}
+\label{msg:12542}
+{\bf Message Codes: } 0,12542\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) 0
+\item (int) 0
+\end{itemize}
+\normalsize
+
+\subsubsection{Get Status (Query)}
+\label{msg:12526}
+{\bf Message Codes: } 0,12526\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) 0
+\end{itemize}
+\normalsize
+
+\subsubsection{Remove Client (Query)}
+\label{msg:12524}
+{\bf Message Codes: } 0,12524\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [Use 0]
+\item (int) Sender ID
+\end{itemize}\normalsize
+
+Appears sender ID can be any random number.
+
+\subsubsection{Reset House Code (Query)}
+\label{msg:12588}
+{\bf Message Codes: } 0,12588\\
+Appears to be unused.
+
+\subsubsection{Set Cal (Query)}
+\label{msg:12570}
+{\bf Message Codes: } 0,12570\\
+Appears to be unused.
+
+\subsubsection{Set Chem Data (Query)}
+\label{msg:12594}
+{\bf Message Codes: } 0,12594\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [Use 0]
+\item (int) PH Set Point
+\item (int) ORP Set Point
+\item (int) Calcium
+\item (int) Alkalinity
+\item (int) Cyanuric
+\item (int) Salt PPM
+\end{itemize}\normalsize
+See IntelliChlor reference for more information.
+
+\subsubsection{Set Circuit Info By ID (Query)}
+\label{msg:12520}
+{\bf Message Codes: } 0,12520\\
+Appears to be unused.
+
+\subsubsection{Set Circuit Runtime By ID (Query)}
+\label{msg:12550}
+{\bf Message Codes: } 0,12550\\
+Appears to be unused.
+
+\subsubsection{Set Cool Set Point (Query)}
+\label{msg:12590}
+{\bf Message Codes: } 0,12590\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [Use 0]
+\item (int) Body Type
+\item (int) Temperature
+\end{itemize}
+\normalsize
+Body Type: 0 = Pool, 1 = Spa.
+
+\subsubsection{Set Custom Name (Query)}
+\label{msg:12564}
+{\bf Message Codes: } 0,12564\\
+Appears to be unused.
+
+\subsubsection{Set Equipment Configuration (Query)}
+\label{msg:12568}
+{\bf Message Codes: } 0,12568\\
+Appears to be unused.
+
+\subsubsection{Set Heat Mode (Query)}
+\label{msg:12538}
+{\bf Message Codes: } 0,12538\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [Use 0]
+\item (int) Body Type
+\item (int) Mode
+\end{itemize}
+\normalsize
+Body Type: 0 = Pool, 1 = Spa. Mode: 0 = Off, 1 = Solar, 2 = Solar Preffered, 3 = Heat, 4 = Don't Change.
+
+\subsubsection{Set Heat Set Point (Query)}
+\label{msg:12528}
+{\bf Message Codes: } 0,12528\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [Use 0]
+\item (int) Body Type
+\item (int) Temperature
+\end{itemize}
+\normalsize
+Body Type: 0 = Pool, 1 = Spa.
+
+\subsubsection{Set Pump Flow (Query)}
+\label{msg:12586}
+{\bf Message Codes: } 0,12586\\
+Appears to be unused.
+
+\subsubsection{Set SCG Configuration (Query)}
+\label{msg:12576}
+{\bf Message Codes: } 0,12576\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller Index [Use 0]
+\item (int) Pool Output
+\item (int) Spa Output
+\item (int) 0
+\item (int) 0
+\end{itemize}
+\normalsize
+See IntelliChlor Manual for more information.
+
+\subsubsection{Set SCG Enabled (Query)}
+\label{msg:12574}
+{\bf Message Codes: } 0,12574\\
+Appears to be unused.
+
+\subsubsection{Set Scheduled Event By ID (Query)}
+\label{msg:12548}
+{\bf Message Codes: } 0,12548\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) 0
+\item (int) Schedule ID
+\item (int) Start Time [minutes from 12AM?]
+\item (int) Stop Time [minutes from 12AM?]
+\item (int) Day Mask [default 127]
+\item (int) Flags [default 2]
+\item (int) Heat Command [default 4]
+\item (int) Heat Set Point
+\end{itemize}
+\normalsize
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\subsection{Server Responses}
+Here the responses that the Pentair system may send are described.
+
+\subsubsection{Chem Data Changed}
+\label{msg:12505}
+{\bf Message Codes: } 0,12505\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Data Size [Should be 42, otherwise invalid message]
+\item (short) ? [can ignore]
+\item (short) PH
+\item (short) ORP
+\item (short) PH Set Point
+\item (short) ORP Set Point
+\item (12 bytes)
+\item (byte) PH Tank Level
+\item (byte) ORP Tank Level
+\item (byte) Saturation
+\item (short) Calcium
+\item (short) Cyanuric
+\item (short) Alkalinity
+\item (short) Salt PPM / 50
+\item (short) Temperature
+\item (byte) Corrosiveneess / Scaling (low bit == scaling, second lowest bit == corrosive)
+\end{itemize}
+\normalsize
+
+\subsubsection{Pool Color Update}
+\label{msg:12504}
+{\bf Message Codes: } 0,12504\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item {\color{red} (int) Mode}
+\item {\color{red} (int) Progress}
+\item {\color{red} (int) Limit}
+\item {\color{red} (string) Text}
+\end{itemize}
+\normalsize
+
+\subsubsection{Color Lights Command (Answer)}
+\label{msg:12557}
+{\bf Message Codes: } 0,12557\\
+Acknowledges receipt of \ref{msg:12556}.
+
+\subsubsection{Configure Light (Answer)}
+\label{msg:12555}
+{\bf Message Codes: } 0,12555\\
+Appears to be unused.
+
+\subsubsection{Delete Scheduled Event By ID (Answer)}
+\label{msg:12547}
+{\bf Message Codes: } 0,12547\\
+
+\subsubsection{Enable Remotes (Answer)}
+\label{msg:12579}
+{\bf Message Codes: } 0,12579\\
+Appears to be unused.
+
+\subsubsection{Get All Custom Names (Answer)}
+\label{msg:12563}
+{\bf Message Codes: } 0,12563\\
+Appears to be unused.
+
+\subsubsection{Get All Errors (Answer)}
+\label{msg:12583}
+{\bf Message Codes: } 0,12583\\
+Appears to be unused.
+
+\subsubsection{Get All Chem Data (Answer)}
+\label{msg:12593}
+{\bf Message Codes: } 0,12593
+See message \ref{msg:12505}.
+
+\subsubsection{Get Chem History Data (Answer)}
+\label{msg:12597}
+{\bf Message Codes: } 0,12597\\
+Appears to be unused.
+
+\subsubsection{Get Circuit Definitions (Answer)}
+\label{msg:12511}
+{\bf Message Codes: } 0,12511\\
+Appears to be unused.
+
+\subsubsection{Get Circuit Info By ID (Answer)}
+\label{msg:12519}
+{\bf Message Codes: } 0,12519\\
+Appears to be unused.
+
+\subsubsection{Get Circuit Names (Answer)}
+\label{msg:12561}
+{\bf Message Codes: } 0,12561\\
+Appears to be unused.
+
+\subsubsection{Get Controller Configuration (Answer)}
+\label{msg:12533}
+{\bf Message Codes: } 0,12533\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Controller ID
+\item (byte) Minimum Set Point (pool?)
+\item (byte) Maximum Set Point (pool?)
+\item (byte) Minimum Set Point (spa?)
+\item (byte) Maximum Set point (spa?)
+\item (byte) Degree C (?)
+\item (byte) Controller Type
+\item (byte) Hardware Type
+\item (byte) Controller Data (?)
+\item (byte) Equipment Flags (Most likely indicates IntelliChlor, Intellibrite, etc)
+\item (String) Generic Circuit Name (Could be called ``Water Features'')
+\item (int) Circuit Count
+\item {\it (int) Circuit ID}
+\item {\it (String) Circuit Name}\\
+$\cdots\cdots\cdots$ repeated italicized parameters for all circuits
+\item {\color{red} REMAINDER OF PARAMETERS ENCODE LIGHT COLORS, PUMP INFO, etc. TODO}
+\end{itemize}
+\normalsize
+
+\subsubsection{Get Equipment Configuration (Answer)}
+\label{msg:12567}
+{\bf Message Codes: } 0,12567\\
+Appears to be unused.
+
+\subsubsection{Get History (Answer)}
+\label{msg:12535}
+{\bf Message Codes: } ID,12535\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item {\color{red} TODO}
+\end{itemize}
+\normalsize
+ID can be any number.
+
+\subsubsection{Get N Circuits (Answer)}
+\label{msg:12559}
+{\bf Message Codes: } 0,12559\\
+Appears to be unused.
+
+
+\subsubsection{Get Pump Status (Answer)}
+\label{msg:12585}
+{\bf Message Codes: } 0,12585\\
+Appears to be unused.
+
+\subsubsection{Get SCG Configuration (Answer)}
+\label{msg:12573}
+{\bf Message Codes: } 0,12573\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item {\color{red} TODO}
+\end{itemize}
+\normalsize
+\subsubsection{Get Schedule Data (Answer)}
+\label{msg:12543}
+{\bf Message Codes: } 0,12543\\
+{\bf Parameters: }
+TODO
+
+\subsubsection{Get Status (Query)}
+\label{msg:12527}
+{\bf Message Codes: } 0,12527\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item {\color{red} TODO}
+\end{itemize}
+\normalsize
+
+\subsubsection{History Data}
+\label{msg:12502}
+{\bf Message Codes: } 0,12502\\
+See message \ref{msg:12535}.
+
+\subsubsection{Remove Client (Answer)}
+\label{msg:12525}
+{\bf Message Codes: } 0,12525\\
+Appears to be unused.
+
+\subsubsection{Reset House Code (Answer)}
+\label{msg:12589}
+{\bf Message Codes: } 0,12589\\
+Appears to be unused.
+
+\subsubsection{Runtime Changed}
+\label{msg:12503}
+{\bf Message Codes: } 0,12503\\
+Appears to be unused.
+
+
+\subsubsection{Runtime Changed}
+\label{msg:12501}
+{\bf Message Codes: } 0,12501\\
+Appears to be unused.
+
+
+\subsubsection{Set Cal (Answer)}
+\label{msg:12571}
+{\bf Message Codes: } 0,12571\\
+Appears to be unused.
+
+\subsubsection{Set Chem Data (Answer)}
+\label{msg:12595}
+{\bf Message Codes: } 0,12595\\
+Appears to be unused.
+
+\subsubsection{Set Circuit Info By ID (Answer)}
+\label{msg:12521}
+{\bf Message Codes: } 0,12521\\
+Appears to be unused.
+
+\subsubsection{Set Circuit Runtime By ID (Answer)}
+\label{msg:12551}
+{\bf Message Codes: } 0,12551\\
+Appears to be unused.
+
+\subsubsection{Set Cool Set Point (Answer)}
+\label{msg:12591}
+{\bf Message Codes: } 0,12591\\
+Appears to be unused.
+
+\subsubsection{Set Custom Name (Answer)}
+\label{msg:12565}
+{\bf Message Codes: } 0,12565\\
+Appears to be unused.
+
+\subsubsection{Set Equipment Configuration (Answer)}
+\label{msg:12569}
+{\bf Message Codes: } 0,12569\\
+Appears to be unused.
+
+\subsubsection{Set Heat Mode (Answer)}
+\label{msg:12539}
+{\bf Message Codes: } 0,12539\\
+Indicates receipt of \ref{msg:12538}.
+
+\subsubsection{Set Heat Set Point (Answer)}
+\label{msg:12529}
+{\bf Message Codes: } 0,12529\\
+Appears to be unused.
+
+\subsubsection{Set Pump Flow (Answer)}
+\label{msg:12587}
+{\bf Message Codes: } 0,12587\\
+Appears to be unused.
+
+\subsubsection{Set SCG Configuration (Answer)}
+\label{msg:12577}
+{\bf Message Codes: } 0,12577\\
+Appears to be unused.
+
+\subsubsection{Set SCG Enabled (Answer)}
+\label{msg:12575}
+{\bf Message Codes: } 0,12575\\
+Appears to be unused.
+
+\subsubsection{Set Scheduled Event By ID (Answer)}
+\label{msg:12549}
+{\bf Message Codes: } 0,12549\\
+Appears to be unused.
+
+\subsubsection{Status Changed}
+\label{msg:12500}
+{\bf Message Codes: } 0,12500\\
+Sent when status changes.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\section{Other Messages}
+\label{sec:other_mess}
+Other messages that can be sent to and from the ScreenLogic.
+
+\subsection{Client Messages}
+
+\subsubsection{Local Login Message}
+\label{msg:27}
+{\bf Message Codes: } 0,27\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item (int) Schema [use 348]
+\item (int) Connection type [use 0]
+\item (String) Client Version [use `Android']
+\item (byte[ ]) Data [use array filled with zeros of length 16]
+\item (int) Process ID [use 2]
+\end{itemize}
+\normalsize
+
+\subsubsection{Weather Forecast (Query)}
+\label{msg:9807}
+{\bf Message Codes: } 0,9807\\
+Requests weather forecast.
+
+\subsubsection{Ping Message (Query)}
+\label{msg:16}
+{\bf Message Codes: } 0,16\\
+Ping Server at 1600ms intervals to keep connection alive.
+
+\subsubsection{Get Controller Mode}
+\label{msg:110}
+{\bf Message Codes: } 0,110\\
+
+\subsection{Server Responses}
+
+\subsubsection{MESSAGE - Login Message Accepted}
+\label{msg:28}
+{\bf Message Codes: } 0,28
+
+\subsubsection{Ping Message (Answer)}
+\label{msg:17}
+{\bf Message Codes: } 0,17\\
+Response to \ref{msg:16}.
+
+\subsubsection{Weather Forecast Changed}
+\label{msg:9806}
+{\bf Message Codes: } ?,9806\\
+Can send \ref{msg:9807}.
+
+\subsubsection{Weather Forecast (Answer)}
+\label{msg:9808}
+{\bf Message Codes: } ?,9808\\
+{\bf Parameters: }
+\small
+\begin{itemize}
+\item {\color{red} TODO}
+\end{itemize}
+\normalsize
+
+
+\appendix
+\section{Full Pool Message Code List}
+\label{sec:pool_messages_list}
+Figure \ref{fig:all_pool_codes} contains a list of all the pool message codes sent and received via the ScreenLogic application. Not all of these are actually used in the current version of the app, but the app internally lists these all as possible message types. Most likely these are all valid message types. The ending ``Q'' signifies a message that the client can send to the screenlogic. ``A'' signifies a response message from the ScreenLogic2 interface. To the extent possible, the full message format for each type is given in Section \ref{sec:pool_mess}.
+
+\begin{figure}[!h]
+\footnotesize
+\begin{tabular}{ c | c || c | c}
+Name & Message Code 2 & Name & Message Code 2 \\
+\hline\hline
+Add Client (Answer) & 12523  & Add Client (Query) & 12522 \\ 
+Add New Scheduled Event (Answer) & 12545  & Add New Scheduled Event (Query) & 12544 \\ 
+Button Press (Answer) & 12531  & Button Press (Query) & 12530 \\ 
+Cancel Delays (Answer) & 12581  & Cancel Delays (Query) & 12580 \\ 
+Chem Data Changed & 12505  & Chem History Data & 12506 \\ 
+Color Lights Command (Answer) & 12557  & Color Lights Command (Query) & 12556 \\ 
+Color Update & 12504  & Configure Light (Answer) & 12555 \\ 
+Configure Light (Query) & 12554  & Delete Scheduled Event By ID (Answer) & 12547 \\ 
+Delete Scheduled Event By ID (Query) & 12546  & Enable Remotes (Answer) & 12579 \\ 
+Enable Remotes (Query) & 12578  & End & 12597 \\ 
+Get All Custom Names (Answer) & 12563  & Get All Custom Names (Query) & 12562 \\ 
+Get All Errors (Answer) & 12583  & Get All Errors (Query) & 12582 \\ 
+Get All Chem Data (Answer) & 12593  & Get All Chem Data (Query) & 12592 \\ 
+Get Chem History Data (Query) & 12596  & Get Chem History Data (Answer) & 12597 \\ 
+Get Circuit Definitions (Answer) & 12511  & Get Circuit Definitions (Query) & 12510 \\ 
+Get Circuit Info By ID (Answer) & 12519  & Get Circuit Info By ID (Query) & 12518 \\ 
+Get Circuit Names (Answer) & 12560  & Get Circuit Names (Query) & 12561 \\ 
+Get Controller Configuration (Answer) & 12533  & Get Controller Configuration (Query) & 12532 \\ 
+Get Equipment Configuration (Answer) & 12567  & Get Equipment Configuration (Query) & 12566 \\ 
+Get History Data (Answer) & 12535  & Get History Data (Query) & 12534 \\ 
+Get N Circuit Names (Answer) & 12559  & Get N Circuit Names (Query) & 12558 \\ 
+Get Pump Status (Answer) & 12585  & Get Pump Status (Query) & 12584 \\ 
+Get SCG Configuration (Answer) & 12573  & Get SCG Configuration (Query) & 12572 \\ 
+Get Schedule Data (Answer) & 12543  & Get Schedule Data (Query) & 12542 \\ 
+Get Status (Answer) & 12527  & Get Status (Query) & 12526 \\ 
+History Data & 12502  & Remove Client (Answer) & 12525 \\ 
+Remove Client (Query) & 12524  & Reset House Code (Answer) & 12589 \\ 
+Reset House Code (Query) & 12588  & Runtime Changed & 12503 \\ 
+Schedule Changed & 12501  & Set Cal (Answer) & 12571 \\ 
+Set Cal (Query) & 12570  & Set Chem Data (Answer) & 12595 \\ 
+Set Chem Data (Query) & 12594  & Set Circuit Info By ID (Answer) & 12521 \\ 
+Set Circuit Info By ID (Query) & 12520  & Set Circuit Runtime By ID (Answer) & 12551 \\ 
+Set Circuit Runtime By ID (Query) & 12550  & Set Cool SP (Answer) & 12591 \\ 
+Set Cool SP (Query) & 12590  & Set Custom Name (Answer) & 12565 \\ 
+Set Custom Name (Query) & 12564  & Set Equipment Configuration (Answer) & 12569 \\ 
+Set Equipment Configuration (Query) & 12568  & Set Heat Mode (Answer) & 12539 \\ 
+Set Heat Mode (Query) & 12538  & Set Heat SP (Answer) & 12529 \\ 
+Set Heat SP (Query) & 12528  & Set Pump Flow (Answer) & 12587 \\ 
+Set Pump Flow (Query) & 12586  & Set SCG Configuration (Answer) & 12577 \\ 
+Set SCG Configuration (Query) & 12576  & Set SCG Enabled (Answer) & 12575 \\ 
+Set SCG Enabled (Query) & 12574  & Set Scheduled Event By ID (Answer) & 12549 \\ 
+Set Scheduled Event By ID (Query) & 12548  & Start & 12500 \\ 
+Status Changed & 12500  &  &  
+\end{tabular}
+\normalsize
+\caption{All Pool Message Codes}
+\label{fig:all_pool_codes}
+\end{figure}
+
+
+% \section{Other Message Codes List}
+% \label{sec:control_messages}
+% Figure XX contains a list of all non-pool specific messages that {\it might} be used. Some clearly are as explained in previous sections, many probably are not accepted by the Screen Logic. Nonetheless they are listed here for completeness.
+
+% \begin{verbatim}
+% HLM_ADD_CLIENTA = 2
+% HLM_ADD_CLIENTQ = 1
+% HLM_BAD_LOCK = 32
+% HLM_BAD_PARAMETERS = 31
+% HLM_CHALLENGESTRINGA = 15
+% HLM_CHALLENGESTRINGQ = 14
+% HLM_CLIENTLOGINA = 28
+% HLM_CLIENTLOGINQ = 27
+% HLM_CLIENTLOGINREJECTED = 13
+% HLM_CONNECTION_LOST = 3000
+% HLM_CONNECT_SERVERSOFT = 29
+% HLM_ERRORS_END = 33
+% HLM_ERRORS_START = 30
+% HLM_FORWARDFAILED = 33
+% HLM_KEEPALIVE = 3
+% HLM_NONE = 10
+% HLM_PINGBRICKA = 5
+% HLM_PINGBRICKQ = 4
+% HLM_PING_SERVERA = 17
+% HLM_PING_SERVERQ = 16
+% HLM_SERVICE_GDISCOVERY_GETGATEWAYDATA_A = 18004
+% HLM_SERVICE_GDISCOVERY_GETGATEWAYDATA_Q = 18003
+% HLM_SETBRICKCONFIGBCQ = 7
+% HLM_SETBRICKCONFIGQ = 6
+% HLM_TSCLIENT_ADDGRAPHIC_STORE = 20110
+% HLM_TSCLIENT_ADD_AUDIO = 20128
+% HLM_TSCLIENT_ADD_SUBSURF_HEAD = 20113
+% HLM_TSCLIENT_ADD_SUBSURF_TAIL = 20114
+% HLM_TSCLIENT_ANIMATION_ASYNC = 20122
+% HLM_TSCLIENT_ANIMATION_SYNC = 20121
+% HLM_TSCLIENT_BATCH_MSG = 20127
+% HLM_TSCLIENT_BEGINASTREAM = 20129
+% HLM_TSCLIENT_BUTTON_TOUCH_NOTIFY = 20201
+% HLM_TSCLIENT_CLEAR_ALL_SUBSURF = 20116
+% HLM_TSCLIENT_CLEAR_GRAPHIC_STORE = 20112
+% HLM_TSCLIENT_CREATE_SESSIONA = 20001
+% HLM_TSCLIENT_CREATE_SESSIONQ = 20000
+% HLM_TSCLIENT_DELGRAPHIC_STORE = 20111
+% HLM_TSCLIENT_DEL_SUBSURF = 20115
+% HLM_TSCLIENT_END = 21000
+% HLM_TSCLIENT_ENDASTREAM = 20130
+% HLM_TSCLIENT_FONTFILE_CHUNK = 20123
+% HLM_TSCLIENT_IMAGEDATA_NOTIFY = 20203
+% HLM_TSCLIENT_INVALIDATE_SURF = 20124
+% HLM_TSCLIENT_PAUSE_NOTIFY = 20205
+% HLM_TSCLIENT_POSITION_NOTIFY = 20207
+% HLM_TSCLIENT_QUERYTEXMETRICS = 20131
+% HLM_TSCLIENT_RECORD_AUDIO = 20141
+% HLM_TSCLIENT_RESUME_NOTIFY = 20206
+% HLM_TSCLIENT_ROTATION_NOTIFY = 20200
+% HLM_TSCLIENT_SCROLL_NOTIFY = 20202
+% HLM_TSCLIENT_SETSURFACEATTRIB = 20120
+% HLM_TSCLIENT_SETSURFACEATTRIB_EXT = 20136
+% HLM_TSCLIENT_SETSURFACEPOS_0 = 20118
+% HLM_TSCLIENT_SETSURFACEPOS_1 = 20119
+% HLM_TSCLIENT_SETSURFACEPROPSQ = 20117
+% HLM_TSCLIENT_START = 20000
+% HLM_TSCLIENT_STOP_RECORDING_AUDIO = 20142
+% HLM_TSCLIENT_SURF_IMAGEDATA = 20125
+% HLM_TSCLIENT_SURF_IMAGEDATA_MCAST = 20126
+% HLM_TSCLIENT_TOUCH_NOTIFY = 20204
+% HLM_TSCLIENT_USERTEXT_ENTRY_CANCEL = 20133
+% HLM_TSCLIENT_USERTEXT_ENTRY_START = 20132
+% HLM_TSCLIENT_USERTEXT_RESULT = 20208
+% HLM_TTS_GETTTSMESSAGEA = 5511
+% HLM_TTS_GETTTSMESSAGEQ = 5510
+% HLM_TTS_NEWTTSMESSAGE = 5500
+% HLM_UNKNOWN = 30
+% HLM_VIDEO_AUDIODATA = 6004
+% HLM_VIDEO_MP3AUDIODATA = 6005
+% HLM_VIDEO_ULAWAUDIODATA = 6006
+% HLM_VOICEMSG_END = 5014
+% HLM_VOICEMSG_GETWAVFILEA = 5067
+% HLM_VOICEMSG_PACKET = 5013
+% HLM_VOICEMSG_STOPA = 5071
+% \end{verbatim}
+
+\end{document}
